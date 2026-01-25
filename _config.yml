@@ -1,0 +1,13 @@
+title: "Vinícius Campos"
+description: "Notes on software, design, and life."
+url: "https://viniciusscampos.dev"
+baseurl: ""
+markdown: kramdown
+permalink: /:title/
+timezone: "America/Sao_Paulo"
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: post
