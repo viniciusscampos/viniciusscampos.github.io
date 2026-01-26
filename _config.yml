@@ -3,6 +3,9 @@ description: "Notes on software, design, and life."
 url: "https://viniciusscampos.dev"
 baseurl: ""
 markdown: kramdown
+highlighter: rouge
+kramdown:
+  syntax_highlighter: rouge
 permalink: /:title/
 timezone: "America/Sao_Paulo"
 defaults:
