@@ -1,0 +1,11 @@
+{
+  "name": "opencode-sandbox-alpine",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges",
+    "--pids-limit=256"
+  ]
+}

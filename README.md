@@ -1,20 +1,33 @@
 # viniciusscampos.dev
 
-Minimal Jekyll blog for GitHub Pages.
+Personal blog built with [Hugo](https://gohugo.io/) and the
+[Hextra](https://github.com/imfing/hextra) theme.
+
+## Requirements
+
+- Hugo Extended 0.146.0 or newer
+- Go 1.21 or newer
 
 ## Local preview
 
 ```sh
-bundle exec jekyll serve
+hugo server --buildDrafts
 ```
 
-If you do not have Bundler set up, you can also use GitHub Pages locally with:
+The first run downloads Hextra through Hugo Modules.
+
+## Production build
 
 ```sh
-gem install bundler jekyll
-bundle exec jekyll serve
+hugo --gc --minify
 ```
 
 ## Writing
 
-Add new posts in `_posts/` using the format `YYYY-MM-DD-title.md`.
+Add posts to `content/blog/` with `title` and `date` in the front matter.
+
+## Deployment
+
+Pushes to `main` are built and deployed to GitHub Pages by the workflow in
+`.github/workflows/hugo.yaml`. The Pages deployment source must be set to
+**GitHub Actions** in the repository settings.

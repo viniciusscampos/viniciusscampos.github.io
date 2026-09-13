@@ -1,3 +1,9 @@
+---
+title: Devcontainer
+date: 2026-01-25
+summary: Using devcontainers to isolate development tools, dependencies, and AI coding assistants from the host operating system.
+---
+
 In the past we'd have the problem of artifact mismatch between development and production. Containerization mitigated this, because we could build a Docker image once and promote it from environment to environment. The code would run as expected regardless of the host, since it lived inside the container.
 
 Even so, we still develop and run the solution locally on our main machines, and that brings issues like incompatibility. A global library version can conflict with the one required by the project. It also adds another attack surface, because we might run malicious code without noticing it if a dependency gets poisoned (supply chain attack).

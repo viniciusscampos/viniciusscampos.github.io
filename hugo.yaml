@@ -1,0 +1,63 @@
+baseURL: "https://viniciusscampos.dev/"
+locale: en-US
+title: "Vinícius Campos"
+timeZone: "America/Sao_Paulo"
+enableRobotsTXT: true
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+permalinks:
+  blog: /:slug/
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+menu:
+  main:
+    - name: Blog
+      pageRef: /blog
+      weight: 1
+    - name: Search
+      weight: 2
+      params:
+        type: search
+    - name: GitHub
+      url: "https://github.com/viniciusscampos"
+      weight: 3
+      params:
+        icon: github
+
+params:
+  description: "Notes on software, design, and life."
+  navbar:
+    displayTitle: true
+    displayLogo: false
+  theme:
+    default: system
+    displayToggle: true
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: true
+  blog:
+    list:
+      sortBy: date
+      sortOrder: desc
+      pagerSize: 10
+    article:
+      displayPagination: true
+  search:
+    enable: true
+    type: flexsearch
+  editURL:
+    enable: false
+
+caches:
+  images:
+    dir: :cacheDir/images

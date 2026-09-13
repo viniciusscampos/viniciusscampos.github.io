@@ -4,10 +4,10 @@
 These instructions apply only to this repo.
 
 ## Blog basics
-- Jekyll posts live in `_posts/`.
-- Filename format: `YYYY-MM-DD-title.md`.
-- Default layout is `post` via `_config.yml`.
-- Current convention: **no front matter** (see existing post).
+- The site uses Hugo with the Hextra theme.
+- Blog posts live in `content/blog/`.
+- Use YAML front matter with at least `title` and `date`.
+- Keep post URLs at the site root; this is configured by the `blog` permalink in `hugo.yaml`.
 - Timezone: `America/Sao_Paulo` (use this when picking dates).
 
 ## Post creation workflow
@@ -21,14 +21,18 @@ These instructions apply only to this repo.
   - Use today’s date in `America/Sao_Paulo`.
 
 ## File handling
-- Create a new file in `_posts/` using the required filename format.
+- Create a new file in `content/blog/` named `<slug>.md`.
+- Add YAML front matter containing the derived `title` and `date`.
 - Write the corrected text into the file.
-- Do not add front matter unless the user explicitly asks for it.
 
 ## Git workflow
 - Stage only the new/modified post file.
 - Commit with message: `post: <slug>` unless the user provides a different message.
 - Push to the current branch unless the user specifies another branch.
+
+## Verification
+- Run `hugo --gc --minify` after changing site configuration, layouts, or content.
+- A change is complete only when the command exits successfully.
 
 ## Clarify when needed
 Ask the user only if a decision is ambiguous and cannot be inferred (e.g., conflicting title/date, or they want grammar edits beyond spelling).
