@@ -1,0 +1,253 @@
+/* Home page */
+.home-hero {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 3.5rem 0 2.5rem;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+
+.home-hero__avatar {
+  flex-shrink: 0;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 4px rgb(241 245 249);
+}
+
+.home-hero__title {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: rgb(15 23 42);
+}
+
+.home-hero__role {
+  margin-top: 0.5rem;
+  font-size: 1.15rem;
+  color: rgb(51 65 85);
+}
+
+.home-hero__role a,
+.home-prose a {
+  color: hsl(var(--primary-hue) var(--primary-saturation) var(--primary-lightness));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.home-hero__location {
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  color: rgb(100 116 139);
+}
+
+.home-hero__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.home-hero__links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgb(51 65 85);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.home-hero__links a:hover {
+  border-color: rgb(148 163 184);
+  color: rgb(15 23 42);
+}
+
+.home-section {
+  padding: 2.5rem 0 0.5rem;
+  scroll-margin-top: calc(var(--hextra-navbar-height) + 1rem);
+}
+
+.home-section__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.home-section__header a {
+  font-size: 0.875rem;
+  color: rgb(100 116 139);
+}
+
+.home-section__header a:hover {
+  color: rgb(15 23 42);
+}
+
+.home-section__title {
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.home-prose {
+  max-width: 44rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: rgb(51 65 85);
+}
+
+.home-prose p + p {
+  margin-top: 0.9rem;
+}
+
+.home-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.home-skills li {
+  padding: 0.2rem 0.65rem;
+  border-radius: 0.375rem;
+  background: rgb(241 245 249);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgb(51 65 85);
+}
+
+/* Posts */
+.home-post {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid rgb(241 245 249);
+}
+
+.home-post:first-child {
+  padding-top: 0;
+}
+
+.home-post:last-child {
+  border-bottom: none;
+}
+
+.home-post__date {
+  padding-top: 0.2rem;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: rgb(100 116 139);
+}
+
+.home-post__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.home-post__title a {
+  color: rgb(15 23 42);
+  text-decoration: none;
+}
+
+.home-post__title a:hover {
+  color: hsl(var(--primary-hue) var(--primary-saturation) var(--primary-lightness));
+}
+
+.home-post__summary {
+  margin-top: 0.4rem;
+  line-height: 1.7;
+  color: rgb(71 85 105);
+}
+
+.home-post__meta {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: rgb(148 163 184);
+}
+
+@media (max-width: 640px) {
+  .home-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding-top: 2rem;
+  }
+
+  .home-hero__avatar {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .home-post {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+/* Dark mode */
+.dark .home-hero {
+  border-bottom-color: rgb(38 38 38);
+}
+
+.dark .home-hero__avatar {
+  box-shadow: 0 0 0 4px rgb(38 38 38);
+}
+
+.dark .home-hero__title,
+.dark .home-post__title a {
+  color: rgb(241 245 249);
+}
+
+.dark .home-hero__role,
+.dark .home-prose {
+  color: rgb(212 212 212);
+}
+
+.dark .home-hero__location,
+.dark .home-post__summary {
+  color: rgb(163 163 163);
+}
+
+.dark .home-hero__role a,
+.dark .home-prose a,
+.dark .home-post__title a:hover {
+  color: hsl(var(--primary-hue) var(--primary-saturation) calc(var(--primary-lightness) + 15%));
+}
+
+.dark .home-hero__links a {
+  border-color: rgb(64 64 64);
+}
+
+.dark .home-hero__links a {
+  color: rgb(212 212 212);
+}
+
+.dark .home-hero__links a:hover,
+.dark .home-section__header a:hover {
+  border-color: rgb(115 115 115);
+  color: rgb(245 245 245);
+}
+
+.dark .home-skills li {
+  background: rgb(38 38 38);
+  color: rgb(212 212 212);
+}
+
+.dark .home-post {
+  border-bottom-color: rgb(38 38 38);
+}
+
+.dark .home-post__meta {
+  color: rgb(115 115 115);
+}

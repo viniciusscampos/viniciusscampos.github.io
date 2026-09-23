@@ -1,24 +1,72 @@
 {{ define "main" }}
-  {{- $readMore := (T "readMore") | default "Read more →" -}}
+  {{- $p := hugo.Data.profile -}}
   {{- $pages := where site.RegularPages "Section" "blog" -}}
   <div class="hx:mx-auto hx:flex hextra-max-page-width">
     {{ partial "sidebar.html" (dict "context" . "disableSidebar" true "displayPlaceholder" true) }}
     <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--hextra-navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8 hx:pr-[calc(env(safe-area-inset-right)-1.5rem)]">
       <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
-        <h1 class="hx:text-center hx:mt-2 hx:text-4xl hx:font-bold hx:tracking-tight hx:text-slate-900 hx:dark:text-slate-100">{{ .Title }}</h1>
-        <div class="content">{{ .Content }}</div>
-        {{- range $pages.ByDate.Reverse }}
-          <div class="hx:mb-10">
-            <h2>
-              <a class="hx:block hx:font-semibold hx:mt-8 hx:text-2xl" style="color: inherit; text-decoration: none;" href="{{ .RelPermalink }}">{{ .Title }}</a>
-            </h2>
-            <p class="hx:opacity-80 hx:mt-4 hx:leading-7">{{ partial "utils/page-description" . }}</p>
-            <p class="hx:opacity-80 hx:mt-1 hx:leading-7">
-              <a class="hx:text-[color:hsl(var(--primary-hue),100%,50%)] hx:underline hx:underline-offset-2 hx:decoration-from-font" href="{{ .RelPermalink }}" aria-label="{{ printf "%s %s" $readMore .Title }}">{{ $readMore }}</a>
+        <header class="home-hero">
+          <img class="home-hero__avatar" src="{{ $p.avatar }}" alt="{{ $p.name }}" width="112" height="112" />
+          <div>
+            <h1 class="home-hero__title">{{ $p.name }}</h1>
+            <p class="home-hero__role">
+              {{- with $p.roleUrl }}<a href="{{ . }}" target="_blank" rel="noopener noreferrer">{{ $p.role }}</a>{{ else }}{{ $p.role }}{{ end -}}
             </p>
-            <p class="hx:opacity-50 hx:text-sm hx:mt-4 hx:leading-7">{{ partial "utils/format-date" .Date }}</p>
+            <p class="home-hero__location">{{ $p.location }}</p>
+            <nav class="home-hero__links" aria-label="Profiles">
+              {{- range $p.links }}
+                <a href="{{ .url }}"{{ if hasPrefix .url "http" }} target="_blank" rel="noopener noreferrer"{{ end }}>
+                  {{- partial "utils/icon.html" (dict "name" .icon "attributes" "height=16") -}}
+                  <span>{{ .name }}</span>
+                </a>
+              {{- end }}
+              {{- with site.Home.OutputFormats.Get "rss" }}
+                <a href="{{ .RelPermalink }}">
+                  {{- partial "utils/icon.html" (dict "name" "rss" "attributes" "height=16") -}}
+                  <span>RSS</span>
+                </a>
+              {{- end }}
+            </nav>
           </div>
-        {{- end }}
+        </header>
+
+        <section id="about" class="home-section" aria-labelledby="about-title">
+          <h2 id="about-title" class="home-section__title">About</h2>
+          <div class="home-prose">{{ $p.about | markdownify }}</div>
+          <ul class="home-skills" aria-label="Skills">
+            {{- range $p.skills }}<li>{{ . }}</li>{{ end -}}
+          </ul>
+        </section>
+
+
+
+        <section id="writing" class="home-section" aria-labelledby="writing-title">
+          <div class="home-section__header">
+            <h2 id="writing-title" class="home-section__title">Latest writing</h2>
+            <a href="{{ relref . "/blog" }}">All posts →</a>
+          </div>
+          <ul class="home-posts__list">
+            {{- range first 3 $pages.ByDate.Reverse }}
+              <li class="home-post">
+                <time class="home-post__date" datetime="{{ .Date.Format "2006-01-02" }}">{{ partial "utils/format-date" .Date }}</time>
+                <div class="home-post__body">
+                  <h3 class="home-post__title"><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+                  <p class="home-post__summary">{{ partial "utils/page-description" . }}</p>
+                  <p class="home-post__meta">{{ .ReadingTime }} min read</p>
+                </div>
+              </li>
+            {{- end }}
+          </ul>
+        </section>
+
+
+        <section id="contact" class="home-section" aria-labelledby="contact-title">
+          <h2 id="contact-title" class="home-section__title">Contact</h2>
+          <p class="home-prose">
+            Want to talk about backend systems, a role, or something I wrote? Reach out on
+            {{ range $i, $l := $p.links }}{{ if $i }}{{ if eq (add $i 1) (len $p.links) }} or {{ else }}, {{ end }}{{ end }}<a href="{{ $l.url }}">{{ $l.name }}</a>{{ end }}.
+          </p>
+        </section>
       </main>
     </article>
     <div class="hx:max-xl:hidden hx:h-0 hx:w-64 hx:shrink-0"></div>

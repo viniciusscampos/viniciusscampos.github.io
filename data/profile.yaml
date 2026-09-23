@@ -1,0 +1,40 @@
+name: Vinícius Campos
+role: Staff Software Engineer
+roleUrl: https://linkedin.com/in/viniciusscampos
+location: Rio de Janeiro, Brazil
+avatar: https://github.com/viniciusscampos.png
+
+links:
+  - name: GitHub
+    url: https://github.com/viniciusscampos
+    icon: github
+  - name: LinkedIn
+    url: https://linkedin.com/in/viniciusscampos
+    icon: linkedin
+  - name: Email
+    url: mailto:viniciusscampos.dev@gmail.com
+    icon: mail
+
+about: |
+  I'm a software engineer with 10 years of experience building backend systems,
+  mostly in fintech and e-commerce, using Go, Python, TypeScript, Java and C#.
+
+  I like working close to the product: taking complex flows such as payments,
+  marketplace integrations and financial operations, and making them scalable,
+  observable and reliable. I usually work in a data-driven, goal-oriented way,
+  with a strong focus on DevOps practices and on keeping codebases simple.
+
+  You can find my full career history on [LinkedIn](https://linkedin.com/in/viniciusscampos).
+
+skills:
+  - Go
+  - TypeScript / Node.js
+  - Python
+  - Java
+  - C#
+  - PostgreSQL
+  - Kafka
+  - AWS
+  - Kubernetes
+  - Terraform
+  - Event-driven architecture
