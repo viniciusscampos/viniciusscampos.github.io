@@ -38,6 +38,8 @@ menu:
 
 params:
   description: "Staff Software Engineer based in Rio de Janeiro. Notes on software, design, and life."
+  images:
+    - /images/og-image.png
   navbar:
     displayTitle: true
     displayLogo: false
