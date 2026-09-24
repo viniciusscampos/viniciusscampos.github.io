@@ -1,0 +1,601 @@
+{{- /* Interactive dual-write simulator drawn as a C4 dynamic diagram: naive vs. self-healing flow.
+     Styles and script are inlined per use; the script skips widgets it already initialized. */ -}}
+{{- $id := printf "dw-%d" .Ordinal -}}
+<figure class="dw" data-dw>
+  <div class="dw-controls">
+    <div class="dw-group dw-scenarios" role="group" aria-label="Scenario">
+      <button type="button" data-scenario="ok" aria-pressed="false">All OK</button>
+      <button type="button" data-scenario="after1" aria-pressed="false">Dies after 1</button>
+      <button type="button" data-scenario="after2" aria-pressed="false">Dies after 2</button>
+      <button type="button" data-scenario="timeout" aria-pressed="false">Timeout on 2</button>
+    </div>
+    <div class="dw-group dw-mode" role="group" aria-label="Flow">
+      <button type="button" data-mode="naive" aria-pressed="true">Naive flow</button>
+      <button type="button" data-mode="heal" aria-pressed="false">Self-healing flow</button>
+    </div>
+  </div>
+
+  <svg class="dw-diagram" data-svg role="img" aria-labelledby="{{ $id }}-title {{ $id }}-desc">
+    <title id="{{ $id }}-title">Checkout system diagram</title>
+    <desc id="{{ $id }}-desc" data-desc></desc>
+    <defs>
+      <marker id="{{ $id }}-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path class="dw-arrow" d="M0,0 L10,5 L0,10 z"></path>
+      </marker>
+      <marker id="{{ $id }}-arrow-done" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path class="dw-arrow dw-arrow--done" d="M0,0 L10,5 L0,10 z"></path>
+      </marker>
+      <marker id="{{ $id }}-arrow-timeout" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path class="dw-arrow dw-arrow--timeout" d="M0,0 L10,5 L0,10 z"></path>
+      </marker>
+    </defs>
+    <rect class="dw-boundary" data-boundary rx="10"></rect>
+    <text class="dw-boundary-label" data-boundary-label><tspan class="dw-boundary-name">Checkout system</tspan><tspan class="dw-boundary-type" dx="8">[Software system]</tspan></text>
+    <g data-edges></g>
+    <g data-nodes></g>
+    <g data-overlay></g>
+  </svg>
+
+  <div class="dw-legend" aria-hidden="true">
+    <span><i class="dw-swatch dw-swatch--container"></i>Container</span>
+    <span><i class="dw-swatch dw-swatch--external"></i>External system</span>
+    <span><i class="dw-swatch dw-swatch--boundary"></i>System boundary</span>
+  </div>
+
+  <p class="dw-caption" data-caption aria-live="polite">Pick a scenario to run the flow.</p>
+  <p class="dw-verdict" data-verdict></p>
+  <details class="dw-events" data-events hidden>
+    <summary>Show all events</summary>
+    <ol data-log></ol>
+  </details>
+</figure>
+
+<style>
+  .dw {
+    --dw-ink: #0f172a; --dw-muted: #64748b; --dw-line: #a3adbb; --dw-bg: #f8fafc; --dw-surface: #ffffff;
+    --dw-accent: var(--hx-color-primary-600, #2563eb);
+    --dw-container-fill: color-mix(in srgb, var(--dw-accent) 9%, #ffffff);
+    --dw-external-fill: #eceff3; --dw-external-stroke: #8a94a3;
+    --dw-ok: #15803d; --dw-bad: #b91c1c; --dw-warn: #b45309;
+    margin: 1.5rem 0; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: var(--dw-bg);
+    color: var(--dw-ink); font-size: 0.95rem;
+  }
+  html.dark .dw {
+    --dw-ink: #e5e7eb; --dw-muted: #9ca3af; --dw-line: #5b6472; --dw-bg: #161618; --dw-surface: #111111;
+    --dw-accent: var(--hx-color-primary-400, #60a5fa);
+    --dw-container-fill: color-mix(in srgb, var(--dw-accent) 13%, #161618);
+    --dw-external-fill: #25262a; --dw-external-stroke: #7b818c;
+    --dw-ok: #4ade80; --dw-bad: #f87171; --dw-warn: #fbbf24;
+    border-color: #2a2b30;
+  }
+
+  /* Controls */
+  .dw-controls { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; }
+  .dw-group { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .dw button {
+    border: 1px solid #d4d8de; background: var(--dw-surface); color: inherit; font: inherit; font-size: 0.85rem;
+    border-radius: 6px; padding: 0.3rem 0.75rem; cursor: pointer;
+  }
+  html.dark .dw button { border-color: #3a3b40; }
+  .dw button:hover { border-color: var(--dw-accent); }
+  .dw button[aria-pressed="true"] { border-color: var(--dw-accent); color: var(--dw-accent); font-weight: 600; }
+  .dw-mode { gap: 0; }
+  .dw-mode button:first-child { border-radius: 6px 0 0 6px; }
+  .dw-mode button:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+  .dw-mode button[aria-pressed="true"] { position: relative; background: color-mix(in srgb, var(--dw-accent) 10%, var(--dw-surface)); }
+  @media (max-width: 480px) {
+    .dw-scenarios { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  }
+
+  /* Diagram */
+  .dw-diagram { display: block; width: 100%; height: auto; margin: 0.5rem 0 0.25rem; overflow: visible; }
+  .dw-diagram text { font-family: inherit; fill: var(--dw-ink); }
+  .dw-boundary {
+    fill: none; stroke: var(--dw-muted); stroke-width: 1.25; stroke-dasharray: 6 5;
+    transition: x 0.45s ease, y 0.45s ease, width 0.45s ease, height 0.45s ease;
+  }
+  .dw-boundary-label { transition: transform 0.45s ease; }
+  .dw-boundary-name { font-size: 13px; font-weight: 600; }
+  .dw-boundary-type { font-size: 11px; fill: var(--dw-muted) !important; }
+
+  .dw-node { transition: transform 0.45s ease, opacity 0.35s ease; }
+  .dw-node[data-hidden] { opacity: 0; pointer-events: none; }
+  .dw-shape { stroke-width: 1.5; transition: stroke 0.2s, fill 0.2s; }
+  .dw-node--container .dw-shape, .dw-node--db .dw-shape { fill: var(--dw-container-fill); stroke: var(--dw-accent); }
+  .dw-node--db .dw-lip { fill: none; stroke: var(--dw-accent); stroke-width: 1.5; }
+  .dw-node--external .dw-shape { fill: var(--dw-external-fill); stroke: var(--dw-external-stroke); }
+  .dw-node[data-crashed] .dw-shape { stroke: var(--dw-bad); stroke-width: 2.5; }
+  .dw-node-name { font-size: 14px; font-weight: 600; text-anchor: middle; }
+  .dw-node-type { font-size: 11px; text-anchor: middle; fill: var(--dw-muted) !important; }
+  .dw-node-state { font-size: 12px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .dw-state-muted { fill: var(--dw-muted) !important; }
+  .dw-state-ok { fill: var(--dw-ok) !important; font-weight: 600; }
+  .dw-state-warn { fill: var(--dw-warn) !important; font-weight: 600; }
+
+  .dw-edge { transition: opacity 0.3s ease; }
+  .dw-edge[data-hidden] { opacity: 0; }
+  .dw-edge-line { fill: none; stroke: var(--dw-line); stroke-width: 1.5; transition: stroke 0.2s; }
+  .dw-edge--quiet .dw-edge-line { stroke-dasharray: 3 4; }
+  .dw-edge[data-done] .dw-edge-line { stroke: var(--dw-ink); }
+  .dw-edge[data-timeout] .dw-edge-line { stroke: var(--dw-warn); stroke-dasharray: 5 4; }
+  .dw-edge-label {
+    font-size: 12px; fill: var(--dw-muted) !important;
+    paint-order: stroke; stroke: var(--dw-bg); stroke-width: 5px; stroke-linejoin: round;
+  }
+  .dw-edge[data-done] .dw-edge-label { fill: var(--dw-ink) !important; }
+  .dw-arrow { fill: var(--dw-line); }
+  .dw-arrow--done { fill: var(--dw-ink); }
+  .dw-arrow--timeout { fill: var(--dw-warn); }
+
+  .dw-dot { fill: var(--dw-accent); }
+  .dw-dot--ack { fill: var(--dw-ok); }
+  .dw-badge rect { fill: var(--dw-bad); }
+  .dw-badge text { fill: #ffffff !important; font-size: 11px; font-weight: 600; text-anchor: middle; }
+  .dw-badge--timeout circle { fill: var(--dw-warn); }
+  .dw-badge--timeout text { fill: #ffffff !important; font-size: 12px; }
+  html.dark .dw-badge text { fill: #111111 !important; }
+
+  /* Legend, caption, events */
+  .dw-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.8rem; color: var(--dw-muted); }
+  .dw-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dw-swatch { display: inline-block; width: 14px; height: 10px; border-radius: 2px; border: 1.5px solid; }
+  .dw-swatch--container { background: var(--dw-container-fill); border-color: var(--dw-accent); }
+  .dw-swatch--external { background: var(--dw-external-fill); border-color: var(--dw-external-stroke); }
+  .dw-swatch--boundary { border: 1.5px dashed var(--dw-muted); }
+  .dw-caption { margin: 0.9rem 0 0; min-height: 1.5em; }
+  .dw-verdict { margin: 0.35rem 0 0; font-weight: 600; min-height: 0; }
+  .dw-verdict:empty { display: none; }
+  .dw-verdict[data-kind="ok"] { color: var(--dw-ok); }
+  .dw-verdict[data-kind="bad"] { color: var(--dw-bad); }
+  .dw-verdict[data-kind="warn"] { color: var(--dw-warn); }
+  .dw-events { margin-top: 0.75rem; font-size: 0.85rem; color: var(--dw-muted); }
+  .dw-events summary { cursor: pointer; width: fit-content; }
+  .dw-events ol { margin: 0.5rem 0 0; padding-left: 1.4rem; }
+  .dw-events li { margin: 0.15rem 0; }
+  .dw-events li.dw-attempt { list-style: none; margin: 0.5rem 0 0.2rem -1.4rem; font-weight: 600; color: var(--dw-ink); }
+</style>
+<script>
+(() => {
+  const SVG = "http://www.w3.org/2000/svg";
+
+  const NODES = {
+    api: { kind: "container", name: "API", type: "[Container: HTTP API]",
+      tip: { naive: "Receives the checkout and runs all three steps itself.", heal: "Receives the checkout with its order_id, publishes a message, and returns." } },
+    queue: { kind: "container", name: "Queue", type: "[Container: queue]", tip: "Keeps the message until the worker ACKs it, and redelivers it otherwise." },
+    dlq: { kind: "container", name: "DLQ", type: "[Container: queue]", tip: "Receives messages that failed N times. Alert on it and redrive them." },
+    worker: { kind: "container", name: "Worker", type: "[Container: consumer]", tip: "Runs the three steps and ACKs only after the flow ends." },
+    db: { kind: "db", name: "Orders DB", type: "[Container: database]", tip: "Stores the order and its status." },
+    webhook: { kind: "container", name: "Webhook handler", type: "[Container: HTTP API]", tip: "Receives payment results and moves the order forward if it's still PENDING." },
+    psp: { kind: "external", name: "Payment provider", type: "[External system]", tip: "Charges the customer, and deduplicates requests by idempotency key." },
+  };
+
+  // Edges per mode. from/to: [node, side, offset]. label: [text, placement, fraction along the path].
+  const EDGES = {
+    naive: [
+      { id: "step1", from: ["api", "r", -11], to: ["db", "l", -11], label: ["1. insert order", "above"], short: "1" },
+      { id: "step3", from: ["api", "r", 11], to: ["db", "l", 11], label: ["3. mark PAID", "below"], short: "3" },
+      { id: "step2", from: ["api", "b", 0], to: ["psp", "t", 0], label: ["2. charge", "right"] },
+    ],
+    heal: [
+      { id: "publish", from: ["api", "r", 0], to: ["queue", "l", 0], label: ["publish", "above"], narrow: { from: ["api", "b", 0], to: ["queue", "t", 0], label: ["publish", "right"] } },
+      { id: "deliver", from: ["queue", "r", 0], to: ["worker", "l", 0], label: ["deliver", "above"], narrow: { from: ["queue", "b", 0], to: ["worker", "t", 0], label: ["deliver", "right"] } },
+      { id: "dead", quiet: true, from: ["queue", "b", 0], to: ["dlq", "t", 0], label: ["after N retries", "right"], narrow: { from: ["queue", "r", 0], to: ["dlq", "l", 0], label: ["retries", "above"] } },
+      { id: "step1", from: ["worker", "r", -11], to: ["db", "l", -11], label: ["1. insert", "above"], short: "1" },
+      { id: "step3", from: ["worker", "r", 11], to: ["db", "l", 11], label: ["3. mark PAID", "below"], short: "3" },
+      { id: "step2", from: ["worker", "b", 0], to: ["psp", "t", 0], label: ["2. charge", "right"] },
+      { id: "hook", from: ["psp", "r", 0], to: ["webhook", "b", 0], label: ["webhook", "above", 0.3] },
+      { id: "hookdb", from: ["webhook", "t", 0], to: ["db", "b", 0], label: ["PAID if PENDING", "left"] },
+    ],
+  };
+
+  // Geometry per layout (wide / narrow) and mode. Widths are fixed per layout so text keeps one size.
+  const LAYOUTS = {
+    wide: {
+      width: 760, w: 130, h: { container: 58, db: 88, external: 76 }, withType: true,
+      naive: { height: 296, boundary: [180, 26, 420, 154],
+        nodes: { api: [210, 70], db: [450, 55], psp: [210, 208] } },
+      heal: { height: 408, boundary: [6, 26, 748, 264],
+        nodes: { api: [16, 70], queue: [206, 70], worker: [396, 70], db: [610, 55], dlq: [206, 200], webhook: [610, 208], psp: [396, 322] } },
+    },
+    narrow: {
+      width: 360, w: 140, h: { container: 50, db: 72, external: 62 }, withType: false,
+      naive: { height: 272, boundary: [6, 22, 348, 120],
+        nodes: { api: [16, 58], db: [204, 47], psp: [16, 200] } },
+      heal: { height: 578, boundary: [6, 22, 348, 450],
+        nodes: { api: [16, 58], queue: [16, 158], dlq: [204, 158], worker: [16, 270], db: [204, 259], webhook: [204, 395], psp: [16, 505] } },
+    },
+  };
+
+  const DESC = {
+    naive: "Naive flow: the API inserts the order in the Orders DB, charges the external payment provider, and marks the order as PAID.",
+    heal: "Self-healing flow: the API publishes a message to a queue. A worker inserts the order, charges the payment provider with the order_id as idempotency key, and marks the order as PAID, then ACKs. Failed messages go to a DLQ. The provider also sends a webhook to a handler that marks the order if it's still PENDING.",
+  };
+
+  // Scenario scripts. go: move along an edge. crash/timeout: mark a failure. db/psp: component state.
+  const S = {
+    naive: {
+      ok: [
+        { go: "step1", say: "Step 1: the API inserts order 123 as PENDING.", db: "PENDING" },
+        { go: "step2", say: "Step 2: the API charges the customer.", psp: "charged" },
+        { go: "step3", say: "Step 3: the API marks the order as PAID.", db: "PAID" },
+        { verdict: ["ok", "Consistent: order PAID, customer charged once."] },
+      ],
+      after1: [
+        { go: "step1", say: "Step 1: the API inserts order 123 as PENDING.", db: "PENDING" },
+        { crash: "api", say: "The API crashes before charging." },
+        { verdict: ["warn", "Order stuck in PENDING. Nobody was charged, but from our DB we can't know that."] },
+      ],
+      after2: [
+        { go: "step1", say: "Step 1: the API inserts order 123 as PENDING.", db: "PENDING" },
+        { go: "step2", say: "Step 2: the API charges the customer.", psp: "charged" },
+        { crash: "api", say: "The API crashes before updating the order." },
+        { verdict: ["bad", "Customer charged, order stuck in PENDING. Our DB looks exactly like \"Dies after 1\"."] },
+      ],
+      timeout: [
+        { go: "step1", say: "Step 1: the API inserts order 123 as PENDING.", db: "PENDING" },
+        { timeout: "step2", say: "Step 2: the charge request times out. The provider charged the customer, but we never saw the response.", psp: "charged" },
+        { verdict: ["bad", "Order in PENDING, and from our side we can't tell whether the customer was charged."] },
+      ],
+    },
+    heal: {
+      ok: [
+        { go: "publish", say: "The API publishes order 123 to the queue and returns." },
+        { go: "deliver", say: "The queue delivers the message to the worker." },
+        { go: "step1", say: "Step 1: the worker inserts order 123 as PENDING.", db: "PENDING" },
+        { go: "step2", say: "Step 2: the worker charges the customer with Idempotency-Key 123.", psp: "charged" },
+        { go: "step3", say: "Step 3: the worker marks the order as PAID, since it's still PENDING.", db: "PAID" },
+        { ack: true, say: "The worker ACKs the message." },
+        { verdict: ["ok", "Consistent: order PAID, customer charged once."] },
+      ],
+      after1: [
+        { go: "publish", say: "The API publishes order 123 to the queue and returns." },
+        { go: "deliver", say: "The queue delivers the message to the worker." },
+        { go: "step1", say: "Step 1: the worker inserts order 123 as PENDING.", db: "PENDING" },
+        { crash: "worker", say: "The worker crashes before charging, so there's no ACK." },
+        { attempt: 2 },
+        { go: "deliver", say: "The queue redelivers the message." },
+        { go: "step1", say: "Step 1: the order already exists, so the insert is skipped." },
+        { go: "step2", say: "Step 2: the worker charges the customer with Idempotency-Key 123.", psp: "charged" },
+        { go: "step3", say: "Step 3: the worker marks the order as PAID, since it's still PENDING.", db: "PAID" },
+        { ack: true, say: "The worker ACKs the message." },
+        { verdict: ["ok", "Healed by redelivery. One charge, order PAID."] },
+      ],
+      after2: [
+        { go: "publish", say: "The API publishes order 123 to the queue and returns." },
+        { go: "deliver", say: "The queue delivers the message to the worker." },
+        { go: "step1", say: "Step 1: the worker inserts order 123 as PENDING.", db: "PENDING" },
+        { go: "step2", say: "Step 2: the worker charges the customer with Idempotency-Key 123.", psp: "charged" },
+        { crash: "worker", say: "The worker crashes before updating the order, so there's no ACK." },
+        { go: "hook", say: "The provider sends a webhook with metadata.order_id = 123." },
+        { go: "hookdb", say: "The webhook handler marks the order as PAID, since it's still PENDING.", db: "PAID" },
+        { attempt: 2 },
+        { go: "deliver", say: "The queue redelivers the message." },
+        { go: "step1", say: "The order is already PAID, so there's nothing left to do." },
+        { ack: true, say: "The worker ACKs the message." },
+        { verdict: ["ok", "Healed by the webhook. The retry found the order PAID and just ACKed. Still one charge."] },
+      ],
+      timeout: [
+        { go: "publish", say: "The API publishes order 123 to the queue and returns." },
+        { go: "deliver", say: "The queue delivers the message to the worker." },
+        { go: "step1", say: "Step 1: the worker inserts order 123 as PENDING.", db: "PENDING" },
+        { timeout: "step2", say: "Step 2: the charge request times out, so there's no ACK. The provider did charge the customer.", psp: "charged" },
+        { attempt: 2 },
+        { go: "deliver", say: "The queue redelivers the message." },
+        { go: "step1", say: "Step 1: the order already exists, so the insert is skipped." },
+        { go: "step2", say: "Step 2: with the same Idempotency-Key 123, the provider replays the first response instead of charging again." },
+        { go: "step3", say: "Step 3: the worker marks the order as PAID, since it's still PENDING.", db: "PAID" },
+        { ack: true, say: "The worker ACKs the message." },
+        { verdict: ["ok", "Healed by redelivery. One charge, and we never needed to know what happened."] },
+      ],
+    },
+  };
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TRAVEL = reduced ? 0 : 650;
+  const PAUSE = reduced ? 0 : 450;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const el = (tag, attrs = {}, parent) => {
+    const node = document.createElementNS(SVG, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (parent) parent.appendChild(node);
+    return node;
+  };
+
+  function init(root) {
+    const svg = root.querySelector("[data-svg]");
+    const arrowId = svg.querySelector("marker").id.replace(/-arrow$/, "");
+    const layers = { edges: svg.querySelector("[data-edges]"), nodes: svg.querySelector("[data-nodes]"), overlay: svg.querySelector("[data-overlay]") };
+    const boundary = svg.querySelector("[data-boundary]");
+    const boundaryLabel = svg.querySelector("[data-boundary-label]");
+    const caption = root.querySelector("[data-caption]");
+    const verdict = root.querySelector("[data-verdict]");
+    const events = root.querySelector("[data-events]");
+    const logList = root.querySelector("[data-log]");
+
+    const state = { mode: "naive", scenario: null, layout: null, run: 0, vbHeight: null, db: null, psp: null };
+    const nodeEls = {};
+    let edgeEls = {};
+
+    const L = () => LAYOUTS[state.layout];
+    const nodeBox = (name) => {
+      const lay = L();
+      const pos = lay[state.mode].nodes[name] || lay.heal.nodes[name];
+      return { x: pos[0], y: pos[1], w: lay.w, h: lay.h[NODES[name].kind] };
+    };
+
+    function buildNodes() {
+      layers.nodes.innerHTML = "";
+      const lay = L();
+      for (const [name, def] of Object.entries(NODES)) {
+        const w = lay.w, h = lay.h[def.kind];
+        const g = el("g", { class: `dw-node dw-node--${def.kind}` }, layers.nodes);
+        g.appendChild(document.createElementNS(SVG, "title"));
+        if (def.kind === "db") {
+          const ry = 9;
+          el("path", { class: "dw-shape", d: `M0,${ry} A${w / 2},${ry} 0 0 1 ${w},${ry} V${h - ry} A${w / 2},${ry} 0 0 1 0,${h - ry} Z` }, g);
+          el("path", { class: "dw-lip", d: `M0,${ry} A${w / 2},${ry} 0 0 0 ${w},${ry}` }, g);
+        } else {
+          el("rect", { class: "dw-shape", width: w, height: h, rx: 6 }, g);
+        }
+        const hasState = def.kind !== "container";
+        const rows = lay.withType
+          ? (def.kind === "db" ? [38, 55, 75] : def.kind === "external" ? [25, 43, 63] : [26, 45])
+          : (def.kind === "db" ? [36, null, 56] : def.kind === "external" ? [26, null, 47] : [31]);
+        el("text", { class: "dw-node-name", x: w / 2, y: rows[0] }, g).textContent = def.name;
+        if (lay.withType) el("text", { class: "dw-node-type", x: w / 2, y: rows[1] }, g).textContent = def.type;
+        if (hasState) el("text", { class: "dw-node-state", x: w / 2, y: rows[2], "data-state": "" }, g);
+        nodeEls[name] = g;
+      }
+    }
+
+    function anchor(name, side, off) {
+      const b = nodeBox(name);
+      if (side === "r") return [b.x + b.w, b.y + b.h / 2 + off];
+      if (side === "l") return [b.x, b.y + b.h / 2 + off];
+      if (side === "t") return [b.x + b.w / 2 + off, b.y];
+      return [b.x + b.w / 2 + off, b.y + b.h];
+    }
+
+    function route(from, to) {
+      const [a, as] = from, [b, bs] = to;
+      const horiz = (s) => s === "l" || s === "r";
+      if (horiz(as) && horiz(bs)) {
+        if (a[1] === b[1]) return `M${a} L${b}`;
+        const mx = (a[0] + b[0]) / 2;
+        return `M${a} H${mx} V${b[1]} H${b[0]}`;
+      }
+      if (!horiz(as) && !horiz(bs)) {
+        if (a[0] === b[0]) return `M${a} L${b}`;
+        const my = (a[1] + b[1]) / 2;
+        return `M${a} V${my} H${b[0]} V${b[1]}`;
+      }
+      return horiz(as) ? `M${a} H${b[0]} V${b[1]}` : `M${a} V${b[1]} H${b[0]}`;
+    }
+
+    function buildEdges() {
+      layers.edges.innerHTML = "";
+      edgeEls = {};
+      const narrow = state.layout === "narrow";
+      for (const spec of EDGES[state.mode]) {
+        const e = narrow && spec.narrow ? { ...spec, ...spec.narrow } : spec;
+        const a = anchor(...e.from), b = anchor(...e.to);
+        const g = el("g", { class: `dw-edge${e.quiet ? " dw-edge--quiet" : ""}`, "data-hidden": "" }, layers.edges);
+        const path = el("path", { class: "dw-edge-line", d: route([a, e.from[1]], [b, e.to[1]]), "marker-end": `url(#${arrowId}-arrow)` }, g);
+        const [text, place, frac = 0.5] = e.label;
+        const labelText = narrow && e.short ? e.short : text;
+        const len = path.getTotalLength();
+        const p = path.getPointAtLength(len * frac);
+        const offs = { above: [0, -7, "middle"], below: [0, 16, "middle"], right: [7, 4, "start"], left: [-7, 4, "end"] }[place];
+        el("text", { class: "dw-edge-label", x: p.x + offs[0], y: p.y + offs[1], "text-anchor": offs[2] }, g).textContent = labelText;
+        edgeEls[e.id] = { g, path };
+      }
+      requestAnimationFrame(() => Object.values(edgeEls).forEach(({ g }) => g.removeAttribute("data-hidden")));
+    }
+
+    function placeNodes() {
+      const lay = L(), m = lay[state.mode];
+      for (const [name, g] of Object.entries(nodeEls)) {
+        const b = nodeBox(name);
+        g.style.transform = `translate(${b.x}px, ${b.y}px)`;
+        g.setAttribute("transform", `translate(${b.x} ${b.y})`);
+        if (m.nodes[name]) g.removeAttribute("data-hidden"); else g.setAttribute("data-hidden", "");
+        const tip = NODES[name].tip;
+        g.querySelector("title").textContent = `${NODES[name].name}: ${typeof tip === "string" ? tip : tip[state.mode]}`;
+      }
+      const [x, y, w, h] = m.boundary;
+      for (const [k, v] of Object.entries({ x, y, width: w, height: h })) {
+        boundary.setAttribute(k, v);
+        boundary.style[k] = `${v}px`;
+      }
+      boundaryLabel.style.transform = `translate(${x + 12}px, ${y + 18}px)`;
+      boundaryLabel.setAttribute("transform", `translate(${x + 12} ${y + 18})`);
+      svg.querySelector("[data-desc]").textContent = DESC[state.mode];
+      tweenHeight(m.height);
+    }
+
+    function tweenHeight(target) {
+      const width = L().width;
+      const from = state.vbHeight ?? target;
+      state.vbHeight = target;
+      if (reduced || from === target) return svg.setAttribute("viewBox", `0 0 ${width} ${target}`);
+      const t0 = performance.now();
+      const step = (t) => {
+        const k = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - k, 3);
+        svg.setAttribute("viewBox", `0 0 ${width} ${from + (target - from) * e}`);
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+
+    function renderState() {
+      const db = nodeEls.db.querySelector("[data-state]");
+      db.innerHTML = "";
+      if (!state.db) {
+        el("tspan", { class: "dw-state-muted" }, db).textContent = "no orders";
+      } else {
+        el("tspan", {}, db).textContent = "order 123: ";
+        el("tspan", { class: state.db === "PAID" ? "dw-state-ok" : "dw-state-warn" }, db).textContent = state.db;
+      }
+      const psp = nodeEls.psp.querySelector("[data-state]");
+      psp.innerHTML = "";
+      if (state.psp) {
+        el("tspan", {}, psp).textContent = "ch_1: ";
+        el("tspan", { class: "dw-state-ok" }, psp).textContent = "succeeded";
+      } else {
+        el("tspan", { class: "dw-state-muted" }, psp).textContent = "no charge";
+      }
+    }
+
+    function clearMarks() {
+      layers.overlay.innerHTML = "";
+      Object.values(nodeEls).forEach((g) => g.removeAttribute("data-crashed"));
+      Object.values(edgeEls).forEach(({ g, path }) => {
+        g.removeAttribute("data-timeout");
+        path.setAttribute("marker-end", `url(#${arrowId}-arrow${g.hasAttribute("data-done") ? "-done" : ""})`);
+      });
+    }
+
+    function reset() {
+      clearMarks();
+      Object.values(edgeEls).forEach(({ g, path }) => {
+        g.removeAttribute("data-done");
+        path.setAttribute("marker-end", `url(#${arrowId}-arrow)`);
+      });
+      state.db = null;
+      state.psp = null;
+      renderState();
+      logList.innerHTML = "";
+      events.hidden = true;
+      verdict.textContent = "";
+      verdict.dataset.kind = "";
+    }
+
+    async function travel(id, run, { reverse = false, cls = "" } = {}) {
+      const { g, path } = edgeEls[id];
+      if (TRAVEL) {
+        const dot = el("circle", { class: `dw-dot ${cls}`, r: 5.5 }, layers.overlay);
+        const len = path.getTotalLength();
+        const t0 = performance.now();
+        await new Promise((resolve) => {
+          const step = (t) => {
+            if (run !== state.run) { dot.remove(); return resolve(); }
+            const k = Math.min(1, (t - t0) / TRAVEL), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+            const p = path.getPointAtLength(len * (reverse ? 1 - e : e));
+            dot.setAttribute("cx", p.x);
+            dot.setAttribute("cy", p.y);
+            if (k < 1) requestAnimationFrame(step); else { dot.remove(); resolve(); }
+          };
+          requestAnimationFrame(step);
+        });
+      }
+      if (!reverse) {
+        g.setAttribute("data-done", "");
+        if (!g.hasAttribute("data-timeout")) path.setAttribute("marker-end", `url(#${arrowId}-arrow-done)`);
+      }
+    }
+
+    function crashBadge(name) {
+      const b = nodeBox(name);
+      nodeEls[name].setAttribute("data-crashed", "");
+      const g = el("g", { class: "dw-badge", transform: `translate(${b.x - 12} ${b.y - 12})` }, layers.overlay);
+      el("rect", { width: 60, height: 20, rx: 10 }, g);
+      el("text", { x: 30, y: 14 }, g).textContent = "crashed";
+    }
+
+    function timeoutMark(id) {
+      const { g, path } = edgeEls[id];
+      g.setAttribute("data-timeout", "");
+      path.setAttribute("marker-end", `url(#${arrowId}-arrow-timeout)`);
+      const p = path.getPointAtLength(path.getTotalLength() / 2);
+      const badge = el("g", { class: "dw-badge dw-badge--timeout", transform: `translate(${p.x - 18} ${p.y})` }, layers.overlay);
+      el("circle", { r: 10 }, badge);
+      el("text", { y: 4.5 }, badge).textContent = "?";
+    }
+
+    function log(text, cls) {
+      const li = document.createElement("li");
+      li.textContent = text;
+      if (cls) li.className = cls;
+      logList.appendChild(li);
+    }
+
+    async function play() {
+      const run = ++state.run;
+      reset();
+      if (!state.scenario) {
+        caption.textContent = "Pick a scenario to run the flow.";
+        return;
+      }
+      events.hidden = false;
+      for (const ev of S[state.mode][state.scenario]) {
+        if (run !== state.run) return;
+        if (ev.attempt) {
+          clearMarks();
+          caption.textContent = `Attempt ${ev.attempt}: the message was never ACKed.`;
+          log(`Attempt ${ev.attempt}`, "dw-attempt");
+          await sleep(PAUSE);
+          continue;
+        }
+        if (ev.verdict) {
+          verdict.dataset.kind = ev.verdict[0];
+          verdict.textContent = ev.verdict[1];
+          continue;
+        }
+        caption.textContent = ev.say;
+        log(ev.say);
+        if (ev.go) await travel(ev.go, run);
+        if (ev.ack) await travel("deliver", run, { reverse: true, cls: "dw-dot--ack" });
+        if (ev.timeout) { await travel(ev.timeout, run); if (run === state.run) timeoutMark(ev.timeout); }
+        if (ev.crash) crashBadge(ev.crash);
+        if (run !== state.run) return;
+        if (ev.db) state.db = ev.db;
+        if (ev.psp) state.psp = ev.psp;
+        renderState();
+        await sleep(ev.crash || ev.timeout ? PAUSE * 2 : PAUSE);
+      }
+    }
+
+    function setLayout() {
+      const layout = root.clientWidth < 560 ? "narrow" : "wide";
+      if (layout === state.layout) return;
+      state.layout = layout;
+      state.vbHeight = null;
+      buildNodes();
+      placeNodes();
+      buildEdges();
+      play();
+    }
+
+    root.querySelectorAll("[data-scenario]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        state.scenario = btn.dataset.scenario;
+        root.querySelectorAll("[data-scenario]").forEach((b) => b.setAttribute("aria-pressed", b === btn));
+        play();
+      })
+    );
+    root.querySelectorAll("[data-mode]").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        if (btn.dataset.mode === state.mode) return;
+        state.mode = btn.dataset.mode;
+        root.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", b === btn));
+        state.run++;
+        layers.overlay.innerHTML = "";
+        placeNodes();
+        buildEdges();
+        const run = state.run;
+        if (!reduced) await sleep(450);
+        if (run === state.run) play();
+      })
+    );
+
+    new ResizeObserver(setLayout).observe(root);
+    setLayout();
+  }
+
+  const start = () => document.querySelectorAll("[data-dw]:not([data-dw-ready])").forEach((node) => {
+    node.dataset.dwReady = "";
+    init(node);
+  });
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", start) : start();
+})();
+</script>

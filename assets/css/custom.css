@@ -251,3 +251,94 @@
 .dark .home-post__meta {
   color: rgb(115 115 115);
 }
+
+/* Mermaid: keep diagrams at a readable size, scroll sideways on narrow screens,
+   and match the C4 colors used by the interactive diagrams. */
+.content .mermaid {
+  --mm-ink: #0f172a;
+  --mm-muted: #64748b;
+  --mm-line: #8a94a3;
+  --mm-accent: var(--hx-color-primary-600, #2563eb);
+  --mm-fill: color-mix(in srgb, var(--mm-accent) 9%, #ffffff);
+  --mm-external-fill: #eceff3;
+  --mm-external-stroke: #8a94a3;
+  --mm-bg: #ffffff;
+  overflow-x: auto;
+}
+
+html.dark .content .mermaid {
+  --mm-ink: #e5e7eb;
+  --mm-muted: #9ca3af;
+  --mm-line: #7b818c;
+  --mm-accent: var(--hx-color-primary-400, #60a5fa);
+  --mm-fill: color-mix(in srgb, var(--mm-accent) 13%, #111111);
+  --mm-external-fill: #25262a;
+  --mm-external-stroke: #7b818c;
+  --mm-bg: #111111;
+}
+
+.content .mermaid svg {
+  min-width: 40rem;
+}
+
+.content .mermaid svg text,
+.content .mermaid svg tspan {
+  font-family: ui-sans-serif, system-ui, sans-serif !important;
+  fill: var(--mm-ink) !important;
+}
+
+.content .mermaid rect.actor {
+  fill: var(--mm-fill) !important;
+  stroke: var(--mm-accent) !important;
+  stroke-width: 1.5px !important;
+  rx: 6px;
+}
+
+.content .mermaid rect.actor[name="Provider"] {
+  fill: var(--mm-external-fill) !important;
+  stroke: var(--mm-external-stroke) !important;
+}
+
+.content .mermaid text.actor tspan {
+  font-weight: 600;
+}
+
+.content .mermaid .actor-line {
+  stroke: var(--mm-line) !important;
+  stroke-dasharray: 3 4;
+}
+
+.content .mermaid .messageLine0,
+.content .mermaid .messageLine1 {
+  stroke: var(--mm-ink) !important;
+  stroke-width: 1.25px !important;
+}
+
+.content .mermaid marker path {
+  fill: var(--mm-ink) !important;
+  stroke: var(--mm-ink) !important;
+}
+
+.content .mermaid .messageText {
+  font-size: 14px !important;
+}
+
+.content .mermaid .loopLine {
+  stroke: var(--mm-muted) !important;
+  stroke-dasharray: 4 4;
+}
+
+.content .mermaid .labelBox {
+  fill: var(--mm-bg) !important;
+  stroke: var(--mm-muted) !important;
+}
+
+.content .mermaid .labelText,
+.content .mermaid .labelText tspan,
+.content .mermaid .sectionTitle,
+.content .mermaid .sectionTitle tspan,
+.content .mermaid .loopText,
+.content .mermaid .loopText tspan {
+  fill: var(--mm-muted) !important;
+  font-size: 13px !important;
+}
