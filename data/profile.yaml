@@ -11,6 +11,9 @@ links:
   - name: LinkedIn
     url: https://linkedin.com/in/viniciusscampos
     icon: linkedin
+  - name: X
+    url: https://x.com/viniciusscampos
+    icon: x-twitter
   - name: Email
     url: mailto:viniciusscampos.dev@gmail.com
     icon: mail
